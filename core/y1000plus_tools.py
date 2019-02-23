@@ -7,8 +7,11 @@ home_dir = location_dict[location_input]
 print("home directory is " + home_dir)
 base_dir = home_dir + os.path.normpath('github/y1000plus_tools/') + os.sep
 print("y1000plus_tools dir is " + base_dir ) 
-y1000plus_dir = home_dir + os.path.normpath("genomes/y1000plus/") + os.sep
-print("y1000plus genomes dir is " + y1000plus_dir)
+y1000plus_dir_options = {'b':home_dir + os.path.normpath("genomes/y1000plus") + os.sep, 
+                         'c': home_dir + os.path.normpath('github/expression_broad_data/expression_data/promoter_phylogenies/y1000plus') + os.sep
+                        }
+y1000plus_dir = y1000plus_dir_options[location_input]
+print("y1000plus data dir is " + y1000plus_dir)
 
 import pandas as pd
 import numpy as np
