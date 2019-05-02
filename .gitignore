@@ -1,4 +1,5 @@
-#ignore .pyc and checkpoints
+#ignore the following files during version control
+data/
 scripts/.ipynb_checkpoints/
-#core/__pycache__/
+core/__pycache__/
 *.pyc

@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
 import os 
-location_input = input("what computer are you on? a = Ben's laptop, b = gpucluster, c = Ben's desktop, d = other")
-location_dict = {'a': "C:\\Users\\BMH_work\\", 'b': "/home/heineike/",
-                 'c': "C:\\Users\\Ben\\Documents\\", 'd':'you need to add your location to the location_dict'}
-home_dir = location_dict[location_input]
+base_dir = ''
+data_processing_dir = ''
+#These need to be set after importing the module based on file structure 
+#set in std_libraries.py
+#I could probably do it automatically with relative paths. 
+home_dir = ''
 print("home directory is " + home_dir)
-base_dir = home_dir + os.path.normpath('github/y1000plus_tools/') + os.sep
+base_dir = ''
 print("y1000plus_tools dir is " + base_dir ) 
-y1000plus_dir_options = {'b':home_dir + os.path.normpath("genomes/y1000plus") + os.sep, 
-                         'c': home_dir + os.path.normpath('github/expression_broad_data/expression_data/promoter_phylogenies/y1000plus') + os.sep
-                        }
-y1000plus_dir = y1000plus_dir_options[location_input]
+y1000plus_dir = ''
 print("y1000plus data dir is " + y1000plus_dir)
+
+
 
 import pandas as pd
 import numpy as np
@@ -32,7 +33,7 @@ from Bio import SeqIO
 # import scipy.stats as stats
 # import scipy.spatial.distance as spd
 # from collections import Counter
-# import subprocess
+import subprocess
 # print('I am importing io_library')
 
 # import requests
@@ -40,7 +41,9 @@ from Bio import SeqIO
 # from itertools import product
 # import pickle
 
-missing_specs = {'saccharomyces_cerevisiae', 'candida_albicans'}  #outgroups not included (e.g. 'arthrobotrys_oligospora', 'aspergillus_nidulans'
+# Will need to fix the protein sequence routine, but for promoter sequences, as long as the outgroups aren't included in the species subset
+# no need to exclude S.Cer and C.Alb
+# missing_specs = {'saccharomyces_cerevisiae', 'candida_albicans'}  #outgroups not included (e.g. 'arthrobotrys_oligospora', 'aspergillus_nidulans'  
 
 scaffold_name_change =  {'metschnikowia_dekortum':'+', 
                          'metschnikowia_borealis': '+', 
@@ -248,7 +251,7 @@ def make_gtf_dbs(y1000_species_subset):
 def extract_promoters(L_prom, og, og_genes, y1000_species_subset, fname_string):
     #for a given orthogroup, extract promoters and put them into a .fasta file
     #L_prom: Length defined for promoter
-
+    
     #Table to look up species by number: 
     genome_name_lookup = dict(zip(y1000_species_subset['spec_og_id'],y1000_species_subset['original_genome_id']))
 
@@ -265,14 +268,39 @@ def extract_promoters(L_prom, og, og_genes, y1000_species_subset, fname_string):
 
         #for each species in the group, gather promoters.  Extract promoter, print promoter as a line in a fasta file
         #>spec y1000_id gene_id gene_full chrm strand start end L
+        
         for spec_og_id, genes in og_genes_specs.items(): 
             genome_name = genome_name_lookup[int(spec_og_id)]
-            #print(genome_name)
-            #if S.Cer skip finding promoter, 
-            if not(genome_name in missing_specs):    
-                #load gene_id map based on the species
-                gene_lookup_spec_fname = y1000plus_dir + "id_lookups/" + genome_name + '.csv'
-                gene_lookup_spec = pd.read_csv(gene_lookup_spec_fname, index_col='y1000_id')
+            #print(genome_name)         
+            #if not(genome_name in missing_specs):  
+            
+            #load gene_id map based on the species
+            gene_lookup_spec_fname = y1000plus_dir + "id_lookups/" + genome_name + '.csv'
+            gene_lookup_spec = pd.read_csv(gene_lookup_spec_fname, index_col='y1000_id')
+            
+            if genome_name=='saccharomyces_cerevisiae': #If S. Cerevisiae, use SGD promoter database
+                sc_promoters = pd.read_pickle(base_dir + os.path.normpath('data/Scer_promoters/sc_promoters.pkl'))
+                for y1000_id in genes: 
+                    gene_id = gene_lookup_spec.loc[y1000_id,'gene_id']
+                    prom_seq = sc_promoters.loc[gene_id,:].prom_seq
+                    if L_prom>len(prom_seq):
+                        print('S.Cerevisiae promoter is only ' + str(len(prom_seq)) + ' bases long, but L_prom=' + str(L_prom))
+                    prom_seq_Ltrim = prom_seq[(700-min(700,L_prom)):]
+                    sc_common_name = sc_promoters.loc[gene_id,:].sc_common_name
+                    f.write('>species=' + genome_name + ' y1000_id=' + y1000_id + ' gene_id=' + gene_id + ' gene_full=' + gene_id+'_'+sc_common_name+ ' L=' + str(len(prom_seq_Ltrim)) + '\n')
+                    f.write(prom_seq_Ltrim + '\n')  
+            elif genome_name=='candida_albicans': #If C alb, use CGD based promoter database
+                ca_promoters = pd.read_pickle(base_dir + os.path.normpath('data/Calb_promoters/Calb_promoters.pkl'))
+                for y1000_id in genes: 
+                    print(y1000_id)
+                    gene_id = gene_lookup_spec.loc[y1000_id,'gene_id']
+                    prom_seq = ca_promoters.loc[gene_id,:].prom_seq
+                    if L_prom>len(prom_seq):
+                        print('C.Albicans promoter is only ' + str(len(prom_seq)) + ' bases long, but L_prom=' + str(L_prom))
+                    prom_seq_Ltrim = prom_seq[(1000-min(1000,L_prom)):]
+                    f.write('>species=' + genome_name + ' y1000_id=' + y1000_id + ' gene_id=' + gene_id + 'L=' + str(len(prom_seq_Ltrim)) + '\n')
+                    f.write(prom_seq_Ltrim + '\n') 
+            else: 
 
                 # Load GTF for given sequence: 
                 gtf_dir = y1000plus_dir + "0_332yeast_genomes/332_genome_annotations/gtf/"
@@ -289,7 +317,6 @@ def extract_promoters(L_prom, og, og_genes, y1000_species_subset, fname_string):
                 for y1000_id in genes: 
                     gene_full = gene_lookup_spec.loc[y1000_id,'gene_full']
                     gene_id = gene_lookup_spec.loc[y1000_id,'gene_id']
-
 
                     cursor = gtf_db.execute('select * from features where attributes like "%' + gene_full + '%"')
                     all_features = cursor.fetchall()
@@ -355,4 +382,131 @@ def extract_promoters(L_prom, og, og_genes, y1000_species_subset, fname_string):
                           ' scaffold=' + chrom + " strand=" + strand + " start=" + str(prom_start) + ' end=' + str(prom_end) +  ' L=' + str(abs(prom_end-prom_start)) + '\n')
                     f.write(str(promoter.upper()) + '\n')  #I wonder why some of the bases were in lower case
     
+    return 
+
+def convert_promoters_for_fimo(fname_in):
+    #Convert promoter fasta for FIMO, also make dictionary for converting back
+
+    fname_base = fname_in.split('.fasta')[0]
+    fasta_out = fname_base + '_fimo.fasta'
+    y1000_id_to_gene_id = {}
+    y1000_id_to_Lprom = {}
+    with open(fasta_out,'w') as f_out: 
+        with open(fname_in,'r') as f_in: 
+            for line in f_in: 
+                line_out = line
+                if line[0]=='>':
+                    y1000_id = line.split()[1].split('=')[1]
+                    line_out = '>' + y1000_id + '\n'
+                    species = line.split()[0].split('=')[1]
+                    gene_id = line.split()[2].split('=')[1]
+                    y1000_id_to_gene_id[y1000_id] = (species, gene_id)
+                if line[0]!='>':
+                    y1000_id_to_Lprom[y1000_id] = len(line)-1  #subtract one for new line character
+                f_out.write(line_out)
+    
+    return y1000_id_to_gene_id, y1000_id_to_Lprom
+
+def promoter_scan_fimo(promoters_prefix, motif_name, motif_fname, thresh, motif_in_file='All'): 
+    
+    promoter_fname =  y1000plus_dir + 'promoter_sets/' + promoters_prefix + '_fimo.fasta'
+    fname_prefix = promoters_prefix + '_' + motif_name
+    output_dir = y1000plus_dir + 'fimo_results' + os.sep
+
+    if motif_in_file == "All":
+        motif_arg = []
+    else:
+        motif_arg = ["--motif",motif_in_file]
+    
+    fimo_command = ([ home_dir + "meme/bin/fimo",
+                      "--oc", output_dir,
+                      "--verbosity", "1",
+                      "--thresh", str(thresh)] +
+                     motif_arg + 
+                     [ motif_fname,
+                       promoter_fname]
+                   )
+
+    print('fimo command:\n' + ' '.join(fimo_command))
+
+    fimo_output = subprocess.run(fimo_command,stdout = subprocess.PIPE) 
+
+    print("fimo output return code = " + str(fimo_output.returncode))
+
+    #change file prefix and delete output other than .txt file
+    files_to_change = ['cisml.xml', 'fimo.html', 'fimo.tsv','fimo.xml', 'fimo.gff']
+
+    for file_to_change in files_to_change: 
+        full_file_to_change = output_dir +  file_to_change   
+        fimo_fname_out = output_dir + fname_prefix + '_' + file_to_change
+        os.rename(full_file_to_change, fimo_fname_out)
+
+    fimo_hits = pd.read_table(output_dir + fname_prefix + '_fimo.tsv',
+                         engine='python', skipfooter=4)
+    
+    return fimo_hits
+
+def extract_protein_seqs(og_genes, fname, y1000_species_subset): 
+    #Looks up protein sequences for given list of orthogroup genes 
+    #
+    ## Does not work for S.Cer, C.Alb, outgroup species
+    
+    proteins_og_fname = y1000plus_dir + os.path.normpath('proteins_og/' + fname + '.fasta')
+    
+    genome_name_lookup = dict(zip(y1000_species_subset['spec_og_id'],y1000_species_subset['original_genome_id']))
+    
+    with open(proteins_og_fname,'w') as f: 
+        # group by species
+        og_genes_specs = {spec_gene.split('_')[0]: [] for spec_gene in og_genes}
+        for y1000_id in og_genes: 
+            spec_og_id = y1000_id.split('_')[0]
+            og_genes_specs[spec_og_id].append(y1000_id)
+
+        for spec_og_id, genes in og_genes_specs.items(): 
+            genome_name = genome_name_lookup[int(spec_og_id)]
+            print(genome_name)
+            #if S.Cer skip finding protein sequences, 
+
+            ## Should add protein sequences in case it is s.cer
+
+            if not(genome_name in missing_specs):    
+                #load gene_id map based on the species
+                gene_lookup_spec_fname = y1000plus_dir + "id_lookups/" + genome_name + '.csv'
+                gene_lookup_spec = pd.read_csv(gene_lookup_spec_fname, index_col='y1000_id')
+
+                #Extract peptide sequences from peptide fasta from genome
+                protein_dir = "/home/heineike/genomes/y1000plus/0_332yeast_genomes/332_genome_annotations/pep/"
+
+                protein_fname = protein_dir + genome_name + '.max.pep'
+
+                seq_records = SeqIO.parse(protein_fname, "fasta")
+
+                genes_lookup = gene_lookup_spec.loc[genes]
+                genes_lookup_set = set(gene_lookup_spec.loc[genes,'gene_full'].values)
+
+                for seq_record in seq_records:
+                    #gene_full = 'augustus_masked-Deha2C-processed-gene-4.36'
+                    gene_full = seq_record.description.split()[1].split('=')[1]
+                    #print(gene_full)
+                    if (gene_full in genes_lookup_set):
+                        #find which y1000_id was matched
+                        y1000_rlookup = genes_lookup['gene_full'] == gene_full
+                        for gene, tf in y1000_rlookup.items(): 
+                            if tf:
+                                y1000_id=gene
+                        gene_id = genes_lookup.loc[y1000_id, 'gene_id']
+                        protein_seq = seq_record.seq
+                        f.write('>' + genome_name + '_' + gene_id + ' y1000_id=' + y1000_id + ' gene_full=' + gene_full +
+                                ' ' + seq_record.description.split()[2] + #this adds in the cds from the original description
+                                '\n')
+                        f.write(str(protein_seq) + '\n')  #I wonder why some of the bases were in lower case
+
     return
+
+def seq_key_func(seq): 
+    #returns a gene_id string for a given seq object generated from a promoter fasta file
+    #one easy option could be gene_id = seq.id, but the id is hidden in the description. 
+    description_dict = {item.split('=')[0] : item.split('=')[1] for item in seq.description.split()}
+    gene_id = description_dict['species'] + '@' + description_dict['gene_id'] 
+    
+    return gene_id
