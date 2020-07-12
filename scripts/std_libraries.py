@@ -1,3 +1,5 @@
+### means I need to add it to my python environment
+
 #Indicate operating environment and import core modules
 import os 
 location_input = input("what computer are you on? a = Ben's laptop, b = gpucluster, c = Ben's desktop, d = other")
@@ -12,7 +14,8 @@ home_dir = location_dict[location_input]
 print("home directory is " + home_dir)
 base_dir = home_dir + os.path.normpath('github/y1000plus_tools') + os.sep
 print("y1000plus_tools dir is " + base_dir )
-y1000plus_dir_options = {'b':home_dir + os.path.normpath("genomes/y1000plus") + os.sep, 
+y1000plus_dir_options = {'a': base_dir + os.path.normpath('genomes/y1000plus') + os.sep,
+                         'b':home_dir + os.path.normpath("genomes/y1000plus") + os.sep, 
                          'c': home_dir + os.path.normpath('github/yeast_esr_expression_analysis/expression_data/promoter_phylogenies/y1000plus') + os.sep
                         }
 y1000plus_dir = y1000plus_dir_options[location_input]
@@ -93,9 +96,9 @@ from ete3 import Tree, SeqMotifFace, TreeStyle, add_face_to_node, RectFace, Node
 #20181031: got this error message: twisted 18.7.0 requires PyHamcrest>=1.9.0, which is not installed.
 
 # In order to view ete3 created trees on the gpucluster, you need to use a virtual X server:
-from pyvirtualdisplay import Display
-display = Display(visible=False, size=(1024, 768), color_depth=24)
-display.start()
+### from pyvirtualdisplay import Display
+### display = Display(visible=False, size=(1024, 768), color_depth=24)
+### display.start()
 
 #for scraping internet data (e.g. ncbi, YGOB)
 import requests

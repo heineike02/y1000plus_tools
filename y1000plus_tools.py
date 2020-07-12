@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+### means I need to import the library to my environment
 import os 
 base_dir = ''
 data_processing_dir = ''
@@ -202,7 +203,7 @@ def make_og_genes_lookup(y1000_id_list, y1000_species_subset):
     #    goi_og_lookup:  dictionary from y1000_ids to orthogroup labels
     #    og_genes_lookup: dictionary from orthogroup labels to list of genes in orthogroups
     
-    orthogroup_fname = "/home/heineike/genomes/y1000plus/orthomcl_output/orthomcl_clusters.txt"
+    orthogroup_fname = y1000plus_dir + os.path.normpath("orthomcl_output/orthomcl_clusters.txt")
 
     #goi_og_set = set(ohnologs_goi_og_genes['OG_index_low']) | set(ohnologs_goi_og_genes['OG_index_high'])
     #low_lookup = dict(zip(ohnologs_goi_og_genes['OG_index_low'],list(ohnologs_goi_og_genes.index)))
@@ -698,25 +699,29 @@ def seq_key_func(seq):
     return gene_id
 
 
-def plot_tree_proms(goi_pair, prom_phyls, fname_tree, y1000_species_subset, proms, motif_names):
+def plot_tree_proms(goi_pair, prom_phyls, t, y1000_species_subset, proms, motif_names, branch_labels):
     #makes tree ready to render for a goi pair and given promoters. 
+    #
+    #branch_labels can be 
+    # 'all':  puts branch length on top, bootstrap/alrt on the bottom or 
+    # 'bootstrap': Just puts bootstrap on top
     
     sacc_families = {'Candida': 'Post_WGH',
-                     'Kazachstania': 'Post_WGH',
-                     'Nakaseomyces': 'Post_WGH',
-                     'Naumovozyma': 'Post_WGH',
-                     'Saccharomyces': 'Post_WGH',
-                     'Tetrapisispora': 'Post_WGH',
-                     'Vanderwaltozyma': 'Post_WGH',
-                     'Yueomyces': 'Post_WGH',
-                     'Zygosaccharomyces': 'ZT',
-                     'Zygotorulaspora': 'ZT',
-                     'Torulaspora': 'ZT',
-                     'Kluyveromyces': 'KLE',
-                     'Lachancea': 'KLE',
-                     'Eremothecium': 'KLE',
-                     'Ashbya': 'KLE'
-                    }
+                 'Kazachstania': 'Post_WGH',
+                 'Nakaseomyces': 'Post_WGH',
+                 'Naumovozyma': 'Post_WGH',
+                 'Saccharomyces': 'Post_WGH',
+                 'Tetrapisispora': 'Post_WGH',
+                 'Vanderwaltozyma': 'Post_WGH',
+                 'Yueomyces': 'Post_WGH',
+                 'Zygosaccharomyces': 'ZT',
+                 'Zygotorulaspora': 'ZT',
+                 'Torulaspora': 'ZT',
+                 'Kluyveromyces': 'KLE',
+                 'Lachancea': 'KLE',
+                 'Eremothecium': 'KLE',
+                 'Ashbya': 'KLE'
+                }
 
     #Color Node by species: 
     sacc_colors = {'KLE': "#deb9f6", #e4cee4",#"#C6AFE9", 
@@ -739,10 +744,13 @@ def plot_tree_proms(goi_pair, prom_phyls, fname_tree, y1000_species_subset, prom
 
 
     #Load Tree
-    t = Tree(fname_tree, format=1)
+    #t = Tree(fname_tree, format=1)
     ts = TreeStyle()
-    ts.show_leaf_name = True
-    ts.show_branch_length = True
+    ts.show_leaf_name = False
+    if branch_labels == 'all':
+        ts.show_branch_length = True
+    else:
+        ts.show_branch_length = False
 
     # #assign Colors, show support values
     # for node in t.traverse():
@@ -785,11 +793,11 @@ def plot_tree_proms(goi_pair, prom_phyls, fname_tree, y1000_species_subset, prom
     seq = '-'*L_prom
 
     motif_colors = {'PDS': 'yellow', 'TATA': 'blue', 'STRE': 'red'}
-    motif_lengths = {'PDS': 12, 'TATA': 16, 'STRE': 10 }  #They are double the size
+    motif_lengths = {'PDS': 3*6, 'TATA': 3*8, 'STRE': 3*5 }  #They are triple the size
 
     #box params:
-    width_box = 20
-    height_box = 30
+    width_box = 40
+    height_box = 55
 
     cmap_STRE = cm.get_cmap('Reds')
     vmin = 0.0
@@ -824,7 +832,9 @@ def plot_tree_proms(goi_pair, prom_phyls, fname_tree, y1000_species_subset, prom
     #     print(node.name)
 
     #For each node in the tree:
-    for node in t.traverse():  
+    for node in t.traverse(): 
+        name_face = AttrFace("name",fsize=15)
+        node.add_face(name_face, column=0, position="branch-right")     
         if node.is_leaf():#Get the promoter sequence with motif info, make it into a motif list
             if 'saccharomyces_cerevisiae' in node.name:       
                 species='saccharomyces_cerevisiae'
@@ -904,7 +914,7 @@ def plot_tree_proms(goi_pair, prom_phyls, fname_tree, y1000_species_subset, prom
             rectFace_STRE = RectFace(width=width_box, height=height_box, fgcolor='black', bgcolor=rgb, 
                                 label= {"text": str(N_STRE), 
                                         "color": 'black', 
-                                        "fontsize": 10, 
+                                        "fontsize": 20, 
                                         "font": 'Verdana'
                                        }
                                )
@@ -924,8 +934,15 @@ def plot_tree_proms(goi_pair, prom_phyls, fname_tree, y1000_species_subset, prom
 
             node.add_face(rectFace_TATA, column=2, position="aligned")
         else:  # If node is not a leaf, add the support label
-            node_label = TextFace(node.name)
-            node.add_face(node_label, column=1, position = "branch-bottom")
+            if branch_labels=='all': 
+                node_label = TextFace(node.name)
+                node.add_face(node_label, column=1, position = "branch-bottom")
+            elif branch_labels =='bootstrap':
+                node_label = TextFace(node.name.split('/')[0])
+                node.add_face(node_label, column=1, position = "branch-top")
+            else: 
+                raise ValueError('invalid value for branch_labels: {}'.format(branch_labels))
+
 
     return t, ts
 
