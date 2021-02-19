@@ -234,6 +234,17 @@ def make_og_genes_lookup(y1000_id_list, y1000_species_subset):
     
     return goi_og_lookup, og_genes_lookup
 
+def combine_ogs(og_list, og_genes_lookup): 
+    #takes list of ogs and og_genes_lookup and outputs a combined orthogroup name
+    #and combined orthogroup list
+    ogcomb_name = '_'.join(og_list)
+
+    ogcomb_genes = []
+    for og in og_list: 
+        ogcomb_genes = ogcomb_genes + list(og_genes_lookup[og])
+
+    return ogcomb_name, ogcomb_genes
+
 def make_gtf_dbs(y1000_species_subset): 
     #Make GTF databases for all selected species
     #Only need to do this once
@@ -588,9 +599,10 @@ def promoter_scan_fimo(promoters_fname, fname_prefix, motif_name, motif_fname, t
 def extract_protein_seqs(og_genes, fname, y1000_species_subset): 
     #Looks up protein sequences for given list of orthogroup genes 
     #
-    ## Does not work for S.Cer, C.Alb, outgroup species
+    ## Does not work for outgroup species
     
-    proteins_og_fname = y1000plus_dir + os.path.normpath('proteins_og/' + fname + '.fasta')
+    os.mkdir(y1000plus_dir + os.path.normpath('proteins_og/' + fname))
+    proteins_og_fname = y1000plus_dir + os.path.normpath('proteins_og/' + fname + '/' + fname + '.fasta')
     
     genome_name_lookup = dict(zip(y1000_species_subset['spec_og_id'],y1000_species_subset['original_genome_id']))
     
@@ -662,7 +674,7 @@ def extract_protein_seqs(og_genes, fname, y1000_species_subset):
                 gene_lookup_spec = pd.read_csv(gene_lookup_spec_fname, index_col='y1000_id')
 
                 #Extract peptide sequences from peptide fasta from genome
-                protein_dir = "/home/heineike/genomes/y1000plus/0_332yeast_genomes/332_genome_annotations/pep/"
+                protein_dir = os.path.normpath(y1000plus_dir + '0_332yeast_genomes/332_genome_annotations/pep') + os.sep 
 
                 protein_fname = protein_dir + genome_name + '.max.pep'
 
@@ -746,7 +758,7 @@ def plot_tree_proms(goi_pair, prom_phyls, t, y1000_species_subset, proms, motif_
     #Load Tree
     #t = Tree(fname_tree, format=1)
     ts = TreeStyle()
-    ts.show_leaf_name = False
+    ts.show_leaf_name = True #False
     if branch_labels == 'all':
         ts.show_branch_length = True
     else:
@@ -833,8 +845,8 @@ def plot_tree_proms(goi_pair, prom_phyls, t, y1000_species_subset, proms, motif_
 
     #For each node in the tree:
     for node in t.traverse(): 
-        name_face = AttrFace("name",fsize=15)
-        node.add_face(name_face, column=0, position="branch-right")     
+        #name_face = AttrFace("name",fsize=15)
+        #node.add_face(name_face, column=0, position="branch-right")     
         if node.is_leaf():#Get the promoter sequence with motif info, make it into a motif list
             if 'saccharomyces_cerevisiae' in node.name:       
                 species='saccharomyces_cerevisiae'

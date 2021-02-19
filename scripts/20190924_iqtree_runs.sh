@@ -14,14 +14,15 @@
 # $4 is the model we want to use
 
 
-base_dir=/home/heineike/genomes/y1000plus/proteins_og/
+base_dir=
+#/home/heineike/genomes/y1000plus/proteins_og/
 
 aln_dir=${base_dir}$1
 
 N_runs=$2
 
-#Activate python environment for iqtree
-. activate /home/lab/envs/seqanalysis
+#Activate python environment for iqtree if necessary
+#. activate /home/lab/envs/seqanalysis
 
 mkdir ${aln_dir}/tree
 
