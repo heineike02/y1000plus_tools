@@ -50,6 +50,8 @@ y1000plus_tools.yeast_esr_exp.data_processing_dir = yeast_esr_exp_path + os.path
 #     sys.path.append(io_library_path_core)
 #     print("Added " + io_library_path_core + " to path" )
 
+
+##Load yeast_esr_exp instead of io_library
 # print("importing io_library.py")
 # print(sys.path)
 # import io_library
@@ -62,6 +64,7 @@ print('sys.path : \n')
 print(sys.path)
 
 import copy
+import shutil
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -88,6 +91,9 @@ from Bio.Alphabet import generic_dna, IUPAC
 from Bio import SeqIO
 from Bio import pairwise2
 from Bio import motifs
+from Bio import AlignIO
+from Bio import Align
+
 import gffutils
 from ete3 import Tree, SeqMotifFace, TreeStyle, add_face_to_node, RectFace, NodeStyle, TextFace, AttrFace
 #ete3 is not officially supported on windows, and so must be loaded via pip: 

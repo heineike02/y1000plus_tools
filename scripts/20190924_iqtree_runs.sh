@@ -14,7 +14,7 @@
 # $4 is the model we want to use
 
 
-base_dir=
+base_dir=/mnt/c/Users/BMH_work/github/y1000plus_tools/genomes/y1000plus/proteins_og/
 #/home/heineike/genomes/y1000plus/proteins_og/
 
 aln_dir=${base_dir}$1
@@ -33,9 +33,9 @@ mkdir ${aln_dir}/tree
 
 for jj in $(seq 1 $N_runs)
 do
-    echo finding models run $jj
+    echo building trees run $jj
     aln_base_name=${aln_dir}/${1}_aln_trimmed.fasta
-    iqtree -s ${aln_base_name} -nt AUTO -o $3 -m $4 -bb 1000 -bnni -alrt 1000 
+    /home/heineike/bioinformatics/iqtree/iqtree-1.6.12-Linux/bin/iqtree -s ${aln_base_name} -nt AUTO -o $3 -m $4 -bb 1000 -bnni -alrt 1000 
     mkdir ${aln_dir}/tree/run${jj}
     mv ${aln_base_name}.* ${aln_dir}/tree/run${jj}/
 done

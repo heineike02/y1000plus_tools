@@ -958,7 +958,7 @@ def plot_tree_proms(goi_pair, prom_phyls, t, y1000_species_subset, proms, motif_
 
     return t, ts
 
-def plot_tree_boot_alrt(goi_pair, prom_phyls, fname_tree, fname_out): 
+def plot_tree_boot_alrt(goi_pair, prom_phyls, fname_tree, fname_out, y1000_species_subset): 
 
     #og = goi_pair_og_lookup[goi_pair]
 
@@ -1107,9 +1107,12 @@ def plot_tree_summary(goi_pair, fname_tree, y1000_species_subset, anc_nodes, out
     vmax = 7.0
     cmap_STRE_norm = colors.Normalize(vmin=vmin, vmax=vmax)
     #box params:
+    #width_box = 48
+    #height_box = 35
+    #box params:
     width_box = 48
     height_box = 35
-
+    height_box_summary = 55
 
     t = Tree(fname_tree, format=1)
     t.ladderize()
@@ -1255,7 +1258,7 @@ def plot_tree_summary(goi_pair, fname_tree, y1000_species_subset, anc_nodes, out
 
         rgb = colors.to_hex(cmap_STRE(cmap_STRE_norm(np.mean(STRE_counts))))
 
-        rectFace_STRE = RectFace(width=width_box, height=height_box, fgcolor='black', bgcolor=rgb, 
+        rectFace_STRE = RectFace(width=width_box, height=height_box_summary, fgcolor='black', bgcolor=rgb, 
                                 label= {"text": '{:0.2f}'.format(np.mean(STRE_counts)), 
                                         "color": 'black', 
                                         "fontsize": 12, 
@@ -1270,6 +1273,212 @@ def plot_tree_summary(goi_pair, fname_tree, y1000_species_subset, anc_nodes, out
     t_abbrev.prune(list(anc_nodes[goi_pair].keys()) + list(left_leaves))
 
     return t_abbrev, ts
+
+
+def plot_tree_proms_exp_data(goi_pair, prom_phyls, t, y1000_species_subset, proms, motif_names, branch_labels, goi_exp_data, exp_subset_goi):
+
+    #makes tree ready to render for a goi pair and given promoters. 
+    #Includes visualization of gene expression data
+    #
+    #branch_labels can be 
+    # 'all':  puts branch length on top, bootstrap/alrt on the bottom or 
+    # 'bootstrap': Just puts bootstrap on top
+
+    #Color Node by species: 
+    sacc_colors = {'KLE': "#deb9f6", #e4cee4",#"#C6AFE9", 
+                   'ZT': "YellowGreen",
+                   'Post_WGH': "LightYellow" #White" # "LightYellow"
+                  }
+
+    post_WGH_colors = {'low':  '#8cc3f6', # '#d3d3fe', #'#3192ff',#'#7eeaf7', ##2DD7ED',      #'#e6fcff', 
+                       'high': '#fcbba1'} #'#59E3EB'}  #'#ffebe6'}
+
+
+    ts = TreeStyle()
+    ts.show_leaf_name = True #False
+    if branch_labels == 'all':
+        ts.show_branch_length = True
+    else:
+        ts.show_branch_length = False
+
+    t.ladderize()
+    L_prom = 700
+    height = 15
+    seq = '-'*L_prom
+
+    motif_colors = {'PDS': 'yellow', 'TATA': 'blue', 'STRE': 'red'}
+    motif_lengths = {'PDS': 3*6, 'TATA': 3*8, 'STRE': 3*5 }  #They are triple the size
+
+    #box params:
+    width_box = 40
+    height_box = 55
+
+    cmap_STRE = cm.get_cmap('Reds')
+    vmin = 0.0
+    vmax = 8.0
+    cmap_STRE_norm = colors.Normalize(vmin=vmin, vmax=vmax)
+
+    cmap_TATA = cm.get_cmap("Blues")
+
+    cmap_exp = cm.get_cmap('coolwarm')
+    vmin = -7.5
+    vmax = 7.5
+    cmap_exp_norm = colors.Normalize(vmin=vmin, vmax=vmax)
+    nan_color = '#808080'
+
+    conds = list(goi_exp_data.columns)
+
+
+    # To get rid of a set of species for the visualization
+    # if less_nonsacc: 
+    #     nonsacc_visualization_subset = pd.read_csv(y1000plus_dir + 'species_visualization_subset.csv')
+    #     species_subset = ( set(nonsacc_visualization_subset['original_genome_id']) | \
+    #                        set(y1000_species[y1000_species['Major clade']=='Saccharomycetaceae']['original_genome_id']) ) # | \
+    #                        #set(y1000_species[y1000_species['Species name']==outgroup]['original_genome_id'])
+    #                      #)
+    #     y1000_species_subset = y1000_species[(y1000_species['original_genome_id'].isin(species_subset))]
+    #     node_subset = []
+    #     #For each node in the tree:
+    #     for node in t.iter_leaves():  
+    #         #Get the promoter sequence with motif info, make it into a motif list
+    #         if 'saccharomyces_cerevisiae' in node.name:
+    #             species='saccharomyces_cerevisiae'
+    #         else: 
+    #             species = '_'.join(node.name.split('_')[:-2])
+    #         if species in species_subset: 
+    #             node_subset.append(node.name)
+
+    #     t.prune(node_subset)
+    #     t.ladderize()
+
+    # for node in t.iter_leaves():  
+    #     print(node.name)
+
+    #For each node in the tree:
+    for node in t.traverse(): 
+        #name_face = AttrFace("name",fsize=15)
+        #node.add_face(name_face, column=0, position="branch-right")     
+        if node.is_leaf():#Get the promoter sequence with motif info, make it into a motif list
+            if 'saccharomyces_cerevisiae' in node.name:       
+                species='saccharomyces_cerevisiae'
+                gene_id = species + '@' + node.name.split(species +'_')[1]
+            elif 'candida_albicans' in node.name: 
+                species = 'candida_albicans'
+                gene_id = species + '@' + node.name.split(species +'_')[1]
+            else: 
+                species = '_'.join(node.name.split('_')[:-2])
+                gene_id = species + '@' + '_'.join(node.name.split('_')[-2:])
+
+
+            #Color node based on species group
+
+            spec_group = exp_subset_goi[node.name][1]
+
+            if spec_group in {'high', 'low'}:
+                node_color = post_WGH_colors[spec_group]
+            else:
+                node_color = sacc_colors[spec_group]
+
+
+            nstyle = NodeStyle()
+            nstyle['bgcolor']=node_color
+            node.set_style(nstyle)
+
+            prom_results = proms.loc[gene_id]
+
+        #     simple_motifs = [
+        #             # seq.start, seq.end, shape, width, height, fgcolor, bgcolor
+        #             [10, 60, ">", None, 10, "black", "red", None],
+        #             [120, 150, "<", None, 10, "black", "red", None]
+        #     ]
+            motifs = []
+
+            for motif_name in motif_names: #, 'PDS']:   #Leaving out PDS
+                motif_len = motif_lengths[motif_name]
+                motif_color = motif_colors[motif_name]
+                if prom_results[motif_name + '_count'] >0:
+
+                    for motif in prom_results[motif_name + '_full_features']:
+                        loc = motif[0]
+                        if loc <= L_prom:
+                            direction = motif[1]
+                            shape = '>'
+                            start = L_prom-loc
+                            stop = L_prom-loc + motif_len
+                            if direction == 'rev':
+                                shape = '<'
+                                start = L_prom-loc-motif_len
+                                stop = L_prom -loc
+                            motifs.append([start,stop,shape,None, height, "black", motif_color, None])
+
+            seqFace = SeqMotifFace(seq, motifs=motifs, seq_format="-")
+            node.add_face(seqFace, column=0, position="aligned")
+
+
+            #Add face for STRE count within 700bp
+
+            motif_name = 'STRE'
+            L_STRE_count = 700
+
+            N_STRE = 0
+            for result in prom_results['STRE_full_features']:
+                if result[0]<L_STRE_count:
+                    N_STRE = N_STRE+1
+
+            rgb = colors.to_hex(cmap_STRE(cmap_STRE_norm(N_STRE)))
+
+            rectFace_STRE = RectFace(width=width_box, height=height_box, fgcolor='black', bgcolor=rgb, 
+                                label= {"text": str(N_STRE), 
+                                        "color": 'black', 
+                                        "fontsize": 20, 
+                                        "font": 'Verdana'
+                                       }
+                               )
+            node.add_face(rectFace_STRE, column = 1, position= "aligned")
+
+            #Add face for TATA box within 700bp
+            motif_name = 'TATA'
+            L_TATA = 300
+
+            TATA = 0.0
+            for result in prom_results['TATA_full_features']:
+                if result[0]<L_TATA:
+                    TATA = 1.0
+
+            rgb = colors.to_hex(cmap_TATA(TATA))
+
+            rectFace_TATA = RectFace(width=width_box, height=height_box, fgcolor='black', bgcolor=rgb)
+
+            node.add_face(rectFace_TATA, column=2, position="aligned")
+
+
+            #add faces for expression data
+
+            for jj, cond in enumerate(conds):
+                data_val = goi_exp_data.loc[exp_subset_goi[node.name][0],cond]
+
+                if np.isnan(data_val): 
+                    rgb = nan_color
+                else: 
+                    rgb = colors.to_hex(cmap_exp(cmap_exp_norm(data_val)))
+
+                rectFace_exp_cond = RectFace(width=width_box, height=height_box, fgcolor='black', bgcolor=rgb)
+                node.add_face(rectFace_exp_cond, column = 3+jj, position= "aligned")
+
+
+        else:  # If node is not a leaf, add the support label
+            if branch_labels=='all': 
+                node_label = TextFace(node.name)
+                node.add_face(node_label, column=1, position = "branch-bottom")
+            elif branch_labels =='bootstrap':
+                node_label = TextFace(node.name.split('/')[0])
+                node.add_face(node_label, column=1, position = "branch-top")
+            else: 
+                raise ValueError('invalid value for branch_labels: {}'.format(branch_labels))
+
+
+    return t, ts
+
 
 
 
