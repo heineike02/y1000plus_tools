@@ -56,7 +56,7 @@ from ete3 import Tree, SeqMotifFace, TreeStyle, add_face_to_node, RectFace, Node
 # import math
 # import scipy.stats as stats
 # import scipy.spatial.distance as spd
-# from collections import Counter
+from collections import OrderedDict  #, Counter
 import subprocess
 # print('I am importing io_library')
 
@@ -122,9 +122,7 @@ def build_y1000_species_table():
     y1000_species.to_csv(y1000_species_table_fname)
     
     return y1000_species
-    
-
-
+       
 
 def id_lookup_generate(y1000_species_subset):
     #species_subset is a dataframe that is a subset of the dataframe created by load_y1000_species
@@ -1564,3 +1562,115 @@ def promoters_all_max_scores(all_promoters_fname, motif_name, thresh, motif_fnam
     
     return all_max_scores_motif
 
+
+def find_spec_synteny(synteny_window_new_cols, focus_spec, focus_anc, genome_name_lookup, y1000_species_subset, anc_genes_ogs_flat, og_genes_lookup, bp_range):
+    #Given a species, find genes surrounding the ortholog of the goi pair.
+
+
+    #Get focus species genes that are present in focus ogs
+    spec_og_id_lookup = dict(zip( y1000_species_subset['original_genome_id'], y1000_species_subset['spec_og_id']))
+    spec_og_id = spec_og_id_lookup[focus_spec]
+    focus_ogs = anc_genes_ogs_flat[focus_anc]
+
+    og_genes = set()
+    for og in focus_ogs: 
+        og_genes = og_genes | og_genes_lookup[og]
+
+    focus_spec_genes = []
+    for og_gene in list(og_genes): 
+        spec_og_id_test = int(og_gene.split('_')[0])
+        if spec_og_id == spec_og_id_test:
+            focus_spec_genes.append(og_gene)
+
+    #Make full_gene lookup for focus spec
+    focus_spec_lookup_fname = y1000plus_dir + os.path.normpath('id_lookups/' + focus_spec + '.csv')
+    focus_spec_lookup = pd.read_csv(focus_spec_lookup_fname, index_col=0)
+    y1000_id_gene_full_lookup = dict(zip(focus_spec_lookup['y1000_id'],focus_spec_lookup['gene_full']))        
+    gene_full_y1000_id_lookup = dict(zip(focus_spec_lookup['gene_full'],focus_spec_lookup['y1000_id']))    
+    y1000_id_gene_id_lookup = dict(zip(focus_spec_lookup['y1000_id'],focus_spec_lookup.index))    
+
+    # Load GTF for given sequence: 
+    gtf_dir = y1000plus_dir + "0_332yeast_genomes/332_genome_annotations/gtf/"
+    db_fname = gtf_dir + 'gffutils_dbs/' + focus_spec + '.db'
+
+    gtf_db = gffutils.FeatureDB(db_fname)
+
+
+    # Make a dictionary of scaffold sizes
+    genome_assembly_fname = y1000plus_dir + os.path.normpath('0_332yeast_genomes/332_genome_assemblies/' + focus_spec + '.fas')
+
+    scaffold_sizes = {}
+    for seq in SeqIO.parse(genome_assembly_fname, "fasta"):
+        scaffold_sizes[seq.id] = len(seq.seq)
+
+    for og_gene in focus_spec_genes: 
+        #print(og_gene)
+        focus_gene_column = y1000_find_surrounding_genes(og_gene, y1000_id_gene_id_lookup, y1000_id_gene_full_lookup, gene_full_y1000_id_lookup, og_genes_lookup, gtf_db, bp_range, scaffold_sizes, anc_genes_ogs_flat, focus_spec_genes, focus_spec)
+        synteny_window_new_cols = synteny_window_new_cols.merge(focus_gene_column, left_on='Ancestor', right_index = True, how='left')
+
+    return synteny_window_new_cols
+
+
+def y1000_find_surrounding_genes(og_gene, y1000_id_gene_id_lookup, y1000_id_gene_full_lookup, gene_full_y1000_id_lookup, og_genes_lookup, gtf_db, bp_range, scaffold_sizes, anc_genes_ogs_flat, focus_spec_genes, focus_spec):
+    #for a given gene find the surrounding genes 
+    
+    focus_gene_id = y1000_id_gene_id_lookup[og_gene]
+
+    gene_full = y1000_id_gene_full_lookup[og_gene]
+
+    cursor = gtf_db.execute('select * from features where attributes like "%' + gene_full + '%"')
+    all_features = cursor.fetchall()
+    if len(all_features) == 0:
+        print('No features found ' + gene_full + ' ' + focus_spec)  
+
+    CDS_list = [feature for feature in all_features if feature['featuretype']=='CDS']
+    if len(CDS_list)==1: 
+        start = CDS_list[0]['start']
+        end = CDS_list[0]['end']
+    elif len(CDS_list)>1: 
+        print('More than one CDS - introns?.  N of CDS: '+ str(len(CDS_list)))
+        start = min([CDS['start'] for CDS in CDS_list])
+        end = max([CDS['end'] for CDS in CDS_list])
+    else: 
+        raise AssertionError('No CDS found' + og_gene)
+
+    CDS = CDS_list[0]
+    strand = CDS['strand']
+    scaffold = CDS['seqid']
+
+    # if strand=='+': 
+    #     lower = start
+    #     higher = end
+    # elif strand == '-': 
+    #     lower = end
+    #     higher = start
+
+    low = max(0,start-bp_range/2)
+    high = min(scaffold_sizes[scaffold], end + bp_range/2)
+
+    surrounding_CDS = list(gtf_db.region(region=(scaffold,low,high), completely_within=False, featuretype='CDS'))
+
+    #surrounding_CDS info: (gene_full, gene_id, strand, start, end)
+    surrounding_CDS_data = []
+    for CDS_surr in surrounding_CDS:
+        surrounding_CDS_data.append((CDS_surr.attributes['gene_id'][0],CDS_surr.id,CDS_surr.strand,CDS_surr.start,CDS_surr.end ))
+
+    #Find OG and line that each gene is in
+    anc_focus_spec_genes = OrderedDict([(anc,[]) for anc in anc_genes_ogs_flat.keys()])
+    for (gene_full, gene_id, strand, start, end) in surrounding_CDS_data:
+        y1000_id = gene_full_y1000_id_lookup[gene_full]
+        for anc,og_list in anc_genes_ogs_flat.items():
+            for og in og_list: 
+                og_genes = og_genes_lookup[og]
+                if y1000_id in og_genes:  #could put in a test to make sure this only happens once
+                    anc_focus_spec_genes[anc].append(y1000_id_gene_id_lookup[y1000_id])
+                    #could make triple dashes if len(anc_focus_spec_genes[anc]) == 0:
+            #remove redundancies created by genes with introns
+            anc_focus_spec_genes[anc]=list(set(anc_focus_spec_genes[anc]))
+    #Merge into synteny window dataframe
+
+    focus_gene_column = pd.DataFrame(pd.Series(anc_focus_spec_genes), columns = [focus_spec + '_' + focus_gene_id])
+
+
+
+    return focus_gene_column

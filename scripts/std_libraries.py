@@ -51,13 +51,11 @@ y1000plus_tools.yeast_esr_exp.data_processing_dir = yeast_esr_exp_path + os.path
 #     print("Added " + io_library_path_core + " to path" )
 
 
-##Load yeast_esr_exp instead of io_library
-# print("importing io_library.py")
-# print(sys.path)
-# import io_library
-# io_library.base_dir = io_library_path 
-# io_library.data_processing_dir = io_library_path + os.path.normpath('expression_data') + os.sep
-
+print("importing yeast_esr_exp")
+print(sys.path)
+import yeast_esr_exp
+yeast_esr_exp.base_dir = yeast_esr_exp_path
+yeast_esr_exp.data_processing_dir = yeast_esr_exp_path + os.path.normpath('expression_data') + os.sep
 
 
 print('sys.path : \n')
