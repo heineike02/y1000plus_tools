@@ -5,22 +5,13 @@ base_dir = ''
 data_processing_dir = ''
 #These need to be set after importing the module based on file structure 
 #set in std_libraries.py
-#I could probably do it automatically with relative paths. 
-home_dir = ''
-print("home directory is unset")
 base_dir = ''
 print("y1000plus_tools dir is unset") 
 y1000plus_dir = ''
 print("y1000plus data dir is unset")
 
 import sys
-# io_library_path = home_dir + os.path.normpath('github/expression_broad_data') + os.sep
-# io_library_path_core = io_library_path + 'core' + os.sep
-# if not(io_library_path_core in sys.path):
-#     sys.path.append(io_library_path_core)
-#     print("Added " + io_library_path_core + " to path" )
-# print("importing io_library.py")
-import yeast_esr_exp # from ..expression_broad_data import 
+import yeast_esr_exp 
 
 #These directories are unset at first - they get set externally
 # yeast_esr_exp.base_dir = yeast_esr_exp_path 
@@ -41,7 +32,7 @@ from statsmodels.distributions.empirical_distribution import ECDF
 import gffutils
 
 from Bio.Seq import Seq
-from Bio.Alphabet import generic_dna, IUPAC
+#from Bio.Alphabet import generic_dna, IUPAC
 from Bio import SeqIO
 from Bio import motifs
 
@@ -201,7 +192,7 @@ def make_og_genes_lookup(y1000_id_list, y1000_species_subset):
     #    goi_og_lookup:  dictionary from y1000_ids to orthogroup labels
     #    og_genes_lookup: dictionary from orthogroup labels to list of genes in orthogroups
     
-    orthogroup_fname = y1000plus_dir + os.path.normpath("orthomcl_output/orthomcl_clusters.txt")
+    orthogroup_fname = y1000plus_dir + os.path.normpath("shen_2018_data/orthomcl_output/orthomcl_clusters.txt")
 
     #goi_og_set = set(ohnologs_goi_og_genes['OG_index_low']) | set(ohnologs_goi_og_genes['OG_index_high'])
     #low_lookup = dict(zip(ohnologs_goi_og_genes['OG_index_low'],list(ohnologs_goi_og_genes.index)))
@@ -243,21 +234,29 @@ def combine_ogs(og_list, og_genes_lookup):
 
     return ogcomb_name, ogcomb_genes
 
-def make_gtf_dbs(y1000_species_subset): 
+def make_gtf_dbs(y1000_species_list): 
     #Make GTF databases for all selected species
     #Only need to do this once
-
-    gtf_dir = y1000plus_dir + "0_332yeast_genomes/332_genome_annotations/gtf/"
+    
+    ## Changed input to be list of species names.  Used to be y1000_species_subset
+    #will need the 'original_genome_id' column, e.g. y1000_species_subset['original_genome_id']   
+    
+    gtf_dir = y1000plus_dir + os.path.normpath("shen_2018_data/0_332yeast_genomes/332_genome_annotations/gtf") + os.sep
+    
+    db_dir = y1000plus_dir + os.path.normpath("y1000plus_tools_data/y1000plus/gffutils_dbs") + os.sep
 
     #y1000_species_subset_subset = y1000_species_subset.loc[y1000_species_subset.index>286, :]
 
-    for genome_fname_base in y1000_species_subset['original_genome_id']: 
-        #Skipping S.Cerevisiae and Candida Albicans because they aren't set up in the same format
-        if genome_fname_base != 'saccharomyces_cerevisiae': 
-            print(genome_fname_base)
+    for genome_fname_base in y1000_species_list: 
+        #Skipping S. cerevisiae and Candida albicans because they aren't set up in the same format
+        if genome_fname_base in {'saccharomyces_cerevisiae', 'candida_albicans'}:
+            print(genome_fname_base + ' database not created - format not compatible')
+        else:
+            print('making ' + genome_fname_base + ' database')
             gtf_fname = gtf_dir + genome_fname_base + '.max.gtf'
-            db_fname = gtf_dir + 'gffutils_dbs/' + genome_fname_base + '.db'
-
+            db_fname = db_dir + genome_fname_base + '.db'
+            print(gtf_fname)
+            print(db_fname)
             #Make new database using gffutils
             #I would love for the ID to be the gene name, but CDS and start and stop codons 
             #are the only things annotated.  
@@ -271,9 +270,14 @@ def make_gtf_dbs(y1000_species_subset):
             #
             #cursor = gtf_db.execute('select * from features where attributes like "%{}%"'.format(gene_name))
 
-            gtf_db = gffutils.create_db(gtf_fname, dbfn=db_fname, force=True, keep_order=True, 
-                                        merge_strategy='error', sort_attribute_values=True, 
-                                        disable_infer_transcripts=True, disable_infer_genes=True)
+            gtf_db = gffutils.create_db(gtf_fname, 
+                                        dbfn=db_fname, 
+                                        force=True, 
+                                        keep_order=True, 
+                                        merge_strategy='error', 
+                                        sort_attribute_values=True, 
+                                        disable_infer_transcripts=True, 
+                                        disable_infer_genes=True)
 
 
             print(genome_fname_base + ' complete')
@@ -557,6 +561,7 @@ def promoter_scan_fimo(promoters_fname, fname_prefix, motif_name, motif_fname, t
     #motif_fname: filename of the motif matrix
     #thresh: threshold to use to call a hit. 
     
+    meme_dir = '??? need to set'
     
     
     output_dir = y1000plus_dir + 'fimo_results' + os.sep
@@ -566,7 +571,7 @@ def promoter_scan_fimo(promoters_fname, fname_prefix, motif_name, motif_fname, t
     else:
         motif_arg = ["--motif",motif_in_file]
     
-    fimo_command = ([ home_dir + "meme/bin/fimo",
+    fimo_command = ([ meme_dir + "/bin/fimo",
                       "--oc", output_dir,
                       "--verbosity", "1",
                       "--thresh", str(thresh)] +
@@ -599,8 +604,8 @@ def extract_protein_seqs(og_genes, fname, y1000_species_subset):
     #
     ## Does not work for outgroup species
     
-    os.mkdir(y1000plus_dir + os.path.normpath('proteins_og/' + fname))
-    proteins_og_fname = y1000plus_dir + os.path.normpath('proteins_og/' + fname + '/' + fname + '.fasta')
+    os.mkdir(y1000plus_dir + os.path.normpath('y1000plus_tools_data/y1000plus/proteins_og/' + fname))
+    proteins_og_fname = y1000plus_dir + os.path.normpath('y1000plus_tools_data/y1000plus/proteins_og/' + fname + '/' + fname + '.fasta')
     
     genome_name_lookup = dict(zip(y1000_species_subset['spec_og_id'],y1000_species_subset['original_genome_id']))
     
@@ -618,10 +623,10 @@ def extract_protein_seqs(og_genes, fname, y1000_species_subset):
   
             if genome_name == 'saccharomyces_cerevisiae':
                 #load gene_id map based on the species
-                gene_lookup_spec_fname = y1000plus_dir + "id_lookups/" + genome_name + '.csv'
+                gene_lookup_spec_fname = y1000plus_dir + os.path.normpath("y1000plus_tools_data/y1000plus/id_lookups/" + genome_name + '.csv')
                 gene_lookup_spec = pd.read_csv(gene_lookup_spec_fname, index_col='y1000_id')
                 
-                protein_fname = y1000plus_dir + os.path.normpath('0_332yeast_genomes/332_genome_annotations/Saccharomyces_cerevisiae_S288C_protein.fasta')
+                protein_fname = y1000plus_dir + os.path.normpath('shen_2018_data/0_332yeast_genomes/332_genome_annotations/Saccharomyces_cerevisiae_S288C_protein.fasta')
 
                 seq_records = SeqIO.parse(protein_fname, "fasta")
 
@@ -644,10 +649,10 @@ def extract_protein_seqs(og_genes, fname, y1000_species_subset):
                         f.write(str(protein_seq) + '\n')  #I wonder why some of the bases were in lower case
             elif genome_name == 'candida_albicans':
                 #load gene_id map based on the species
-                gene_lookup_spec_fname = y1000plus_dir + "id_lookups/" + genome_name + '.csv'
+                gene_lookup_spec_fname = y1000plus_dir + os.path.normpath("y1000plus_tools_data/y1000plus/id_lookups/" + genome_name + '.csv')
                 gene_lookup_spec = pd.read_csv(gene_lookup_spec_fname, index_col='y1000_id')
 
-                protein_fname = y1000plus_dir + os.path.normpath('0_332yeast_genomes/332_genome_annotations/Candida_albicans_SC5314_A22_current_default_protein.fasta')
+                protein_fname = y1000plus_dir + os.path.normpath('shen_2018_data/0_332yeast_genomes/332_genome_annotations/Candida_albicans_SC5314_A22_current_default_protein.fasta')
                 seq_records = SeqIO.parse(protein_fname, "fasta")
 
                 genes_lookup = gene_lookup_spec.loc[genes]
@@ -668,11 +673,11 @@ def extract_protein_seqs(og_genes, fname, y1000_species_subset):
 
             else:   #if not(genome_name in missing_specs):    could also include a missing species list
                 #load gene_id map based on the species
-                gene_lookup_spec_fname = y1000plus_dir + "id_lookups/" + genome_name + '.csv'
+                gene_lookup_spec_fname = y1000plus_dir + os.path.normpath("y1000plus_tools_data/y1000plus/id_lookups/" + genome_name + '.csv')
                 gene_lookup_spec = pd.read_csv(gene_lookup_spec_fname, index_col='y1000_id')
 
                 #Extract peptide sequences from peptide fasta from genome
-                protein_dir = os.path.normpath(y1000plus_dir + '0_332yeast_genomes/332_genome_annotations/pep') + os.sep 
+                protein_dir = os.path.normpath(y1000plus_dir + 'shen_2018_data/0_332yeast_genomes/332_genome_annotations/pep') + os.sep 
 
                 protein_fname = protein_dir + genome_name + '.max.pep'
 
