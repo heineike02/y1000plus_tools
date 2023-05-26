@@ -34,12 +34,13 @@ The data should be in the following structure:
 y1000_plus_tools/
 	data/ (The .gitignore file ignores all files in this data folder)
 		/y1000plus_tools_data
-		/orthomcl_output   
-		/0_332yeast_genomes
-			/0_332yeast_assemblies
-			/0_332yeast_genomes#
-		/332_2408OGs_time-calibrated_phylogeny_species-names_updated.newick
-		/343taxa_speicies-name_clade-name_color-code.txt
+		/shen_2018_data
+			/orthomcl_output   
+			/0_332yeast_genomes
+				/0_332yeast_assemblies
+				/0_332yeast_genomes
+			/332_2408OGs_time-calibrated_phylogeny_species-names_updated.newick
+			/343taxa_speicies-name_clade-name_color-code.txt
 
 ## References
 

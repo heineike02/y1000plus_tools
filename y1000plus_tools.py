@@ -113,7 +113,16 @@ def build_y1000_species_table():
     y1000_species.to_csv(y1000_species_table_fname)
     
     return y1000_species
-       
+
+def y1000_clade_color_lookup(y1000_species_fname = y1000plus_dir + "y1000_species_table.csv"): 
+    y1000_species = pd.read_csv(y1000_species_fname)
+    
+    clade_color_lookup = {}
+
+    for clade, color in zip(y1000_species['Major clade'], y1000_species['hex']): 
+        clade_color_lookup[clade] = color 
+        
+    return clade_color_lookup
 
 def id_lookup_generate(y1000_species_subset):
     #species_subset is a dataframe that is a subset of the dataframe created by load_y1000_species
@@ -249,12 +258,17 @@ def make_gtf_dbs(y1000_species_list):
 
     for genome_fname_base in y1000_species_list: 
         #Skipping S. cerevisiae and Candida albicans because they aren't set up in the same format
-        if genome_fname_base in {'saccharomyces_cerevisiae', 'candida_albicans'}:
+        if genome_fname_base == 'candida_albicans': 
             print(genome_fname_base + ' database not created - format not compatible')
+                  
         else:
             print('making ' + genome_fname_base + ' database')
-            gtf_fname = gtf_dir + genome_fname_base + '.max.gtf'
-            db_fname = db_dir + genome_fname_base + '.db'
+            if genome_fname_base =='saccharomyces_cerevisiae': 
+                gtf_fname = y1000plus_dir +  os.path.normpath("y1000plus_tools_data/scer_20181114/saccharomyces_cerevisiae_R64-2-2_20170117.gff") 
+                db_fname = y1000plus_dir +  os.path.normpath("y1000plus_tools_data/scer_20181114/saccharomyces_cerevisiae_R64-2-2_20170117.db") 
+            else: 
+                gtf_fname = gtf_dir + genome_fname_base + '.max.gtf'
+                db_fname = db_dir + genome_fname_base + '.db'
             print(gtf_fname)
             print(db_fname)
             #Make new database using gffutils
@@ -702,6 +716,112 @@ def extract_protein_seqs(og_genes, fname, y1000_species_subset):
                                 ' ' + seq_record.description.split()[2] + #this adds in the cds from the original description
                                 '\n')
                         f.write(str(protein_seq) + '\n')  #I wonder why some of the bases were in lower case
+
+    return
+
+def extract_cds_seqs(og_genes, fname, y1000_species_subset): 
+    #Looks up coding sequences for given list of orthogroup genes 
+    #
+    ## Does not work for outgroup species
+
+    #os.mkdir(y1000plus_dir + os.path.normpath('y1000plus_tools_data/y1000plus/proteins_og/' + fname))
+    #proteins_og_fname = y1000plus_dir + os.path.normpath('y1000plus_tools_data/y1000plus/proteins_og/' + fname + '/' + fname + '.fasta')
+
+    genome_name_lookup = dict(zip(y1000_species_subset['spec_og_id'],y1000_species_subset['original_genome_id']))
+
+    with open(fname,'w') as f: 
+        # group by species
+        og_genes_specs = {spec_gene.split('_')[0]: [] for spec_gene in og_genes}
+        for y1000_id in og_genes: 
+            spec_og_id = y1000_id.split('_')[0]
+            og_genes_specs[spec_og_id].append(y1000_id)
+
+        for spec_og_id, genes in og_genes_specs.items(): 
+            genome_name = genome_name_lookup[int(spec_og_id)]
+            print(genome_name)
+            #if S.Cer or C. Albicans, do slightly different routine
+
+            if genome_name == 'saccharomyces_cerevisiae':
+                #load gene_id map based on the species
+                gene_lookup_spec_fname = y1000plus_dir + os.path.normpath("y1000plus_tools_data/y1000plus/id_lookups/" + genome_name + '.csv')
+                gene_lookup_spec = pd.read_csv(gene_lookup_spec_fname, index_col='y1000_id')
+
+                cds_fname = y1000plus_dir + os.path.normpath('shen_2018_data/0_332yeast_genomes/332_genome_annotations/Saccharomyces_cerevisiae_S288C_coding.fasta')
+
+                seq_records = SeqIO.parse(cds_fname, "fasta")
+
+                genes_lookup = gene_lookup_spec.loc[genes]
+                genes_lookup_set = set(gene_lookup_spec.loc[genes,'gene_id'].values)  #SC specific
+
+                for seq_record in seq_records:
+                    gene_id = seq_record.description.split()[0] #SC specific
+                    #print(gene_full)
+                    if (gene_id in genes_lookup_set):
+                        #find which y1000_id was matched
+                        y1000_rlookup = (genes_lookup['gene_id'] == gene_id)
+                        for gene, tf in y1000_rlookup.items(): 
+                            if tf:
+                                y1000_id=gene
+                        cds_seq = seq_record.seq
+                        f.write('>' + genome_name + '_' + gene_id + ' y1000_id=' + y1000_id + ' gene_id=' + gene_id +
+                                ' common_name=' + seq_record.description.split()[1] + #this adds in the cds from the original description
+                                '\n')
+                        f.write(str(cds_seq) + '\n')  
+            elif genome_name == 'candida_albicans':
+                #load gene_id map based on the species
+                gene_lookup_spec_fname = y1000plus_dir + os.path.normpath("y1000plus_tools_data/y1000plus/id_lookups/" + genome_name + '.csv')
+                gene_lookup_spec = pd.read_csv(gene_lookup_spec_fname, index_col='y1000_id')
+
+                cds_fname = y1000plus_dir + os.path.normpath('shen_2018_data/0_332yeast_genomes/332_genome_annotations/Candida_albicans_SC5314_A22_current_default_coding.fasta')
+                seq_records = SeqIO.parse(cds_fname, "fasta")
+
+                genes_lookup = gene_lookup_spec.loc[genes]
+                genes_lookup_set = set(gene_lookup_spec.loc[genes,'gene_id'].values)  
+
+                for seq_record in seq_records:
+                    gene_id = seq_record.description 
+
+                    if (gene_id in genes_lookup_set):
+                        #find which y1000_id was matched
+                        y1000_rlookup = (genes_lookup['gene_id'] == gene_id)
+                        for gene, tf in y1000_rlookup.items(): 
+                            if tf:
+                                y1000_id=gene
+                        cds_seq = seq_record.seq
+                        f.write('>' + genome_name + '_' + gene_id + ' y1000_id=' + y1000_id + ' gene_id=' + gene_id +'\n')
+                        f.write(str(cds_seq) + '\n')  #I wonder why some of the bases were in lower case
+
+            else:   #if not(genome_name in missing_specs):    could also include a missing species list
+                #load gene_id map based on the species
+                gene_lookup_spec_fname = y1000plus_dir + os.path.normpath("y1000plus_tools_data/y1000plus/id_lookups/" + genome_name + '.csv')
+                gene_lookup_spec = pd.read_csv(gene_lookup_spec_fname, index_col='y1000_id')
+
+                #Extract peptide sequences from peptide fasta from genome
+                cds_dir = os.path.normpath(y1000plus_dir + 'shen_2018_data/0_332yeast_genomes/332_genome_annotations/cds') + os.sep 
+
+                cds_fname = cds_dir + genome_name + '.max.cds'
+
+                seq_records = SeqIO.parse(cds_fname, "fasta")
+
+                genes_lookup = gene_lookup_spec.loc[genes]
+                genes_lookup_set = set(gene_lookup_spec.loc[genes,'gene_full'].values)
+
+                for seq_record in seq_records:
+                    #gene_full = 'augustus_masked-Deha2C-processed-gene-4.36'
+                    gene_full = seq_record.description.split()[1].split('=')[1]
+                    #print(gene_full)
+                    if (gene_full in genes_lookup_set):
+                        #find which y1000_id was matched
+                        y1000_rlookup = genes_lookup['gene_full'] == gene_full
+                        for gene, tf in y1000_rlookup.items(): 
+                            if tf:
+                                y1000_id=gene
+                        gene_id = genes_lookup.loc[y1000_id, 'gene_id']
+                        cds_seq = seq_record.seq
+                        f.write('>' + genome_name + '_' + gene_id + ' y1000_id=' + y1000_id + ' gene_full=' + gene_full +
+                                ' ' + seq_record.description.split()[2] + #this adds in the cds from the original description
+                                '\n')
+                        f.write(str(cds_seq) + '\n')  #I wonder why some of the bases were in lower case
 
     return
 
@@ -1481,8 +1601,6 @@ def plot_tree_proms_exp_data(goi_pair, prom_phyls, t, y1000_species_subset, prom
 
 
     return t, ts
-
-
 
 
 def background_from_promoters(all_promoters_fname, L_prom):
