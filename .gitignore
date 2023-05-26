@@ -4,3 +4,4 @@ genomes/
 scripts/.ipynb_checkpoints/
 core/__pycache__/
 *.pyc
+.ipynb_checkpoints
