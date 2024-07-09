@@ -10,18 +10,20 @@ import os
 #                 'c': "C:\\Users\\Ben\\Google Drive\\UCSF\\ElSamad_Lab\\PKA\\Manuscript\\", 
 #                 'd': 'you need to add your location to the figsave dict'}
 print('New users will need to update the y1000plus_tools, y1000plus_dir, figsave_dir, and yeast_esr_exp_dir (if those libraries are being used)')
-figsave_dir = os.path.normpath('G:/My Drive/Crick_LMS/projects/jason_met_auxotrophy') + os.sep
-
-base_dir = os.path.normpath('C:/Users/heineib/Documents/GitHub/y1000plus_tools') + os.sep
-print("y1000plus_tools dir is " + base_dir )                      
-y1000plus_dir = base_dir + 'data' + os.sep 
+#figsave_dir = os.path.normpath('G:/My Drive/Crick_LMS/projects/jason_met_auxotrophy') + os.sep
+# base_dir = os.path.normpath('C:/Users/bheineike/Documents/GitHub/y1000plus_tools') + os.sep
+# print("y1000plus_tools dir is " + base_dir )                      
+y1000plus_dir = os.path.normpath('C:/Users/bheineike/Documents/GitHub/y1000plus_tools') + os.sep 
+#base_dir   # + 'y1000plus_tools_data' + os.sep + 'y1000plus' + os.sep 
 print("y1000plus data dir is " + y1000plus_dir)
 
 import sys
 
-if not(base_dir in sys.path): 
-    sys.path.append(base_dir)
-    print("Added " + base_dir + " to path" )
+print(sys.path)
+
+if not(y1000plus_dir in sys.path): 
+    sys.path.append(y1000plus_dir)
+    print("Added " + y1000plus_dir + " to path" )
 
 
 yeast_esr_flag = input("Use yeast_esr_expression functions? (Y/n)")
@@ -42,20 +44,19 @@ if yeast_esr_flag =='Y':
 print("Importing y1000plus_tools.py")
 import y1000plus_tools
 
-y1000plus_tools.base_dir = base_dir
+# y1000plus_tools.base_dir = base_dir
 y1000plus_tools.y1000plus_dir = y1000plus_dir
 
 
-y1000plus_tools.yeast_esr_exp.base_dir = yeast_esr_exp_path
-y1000plus_tools.yeast_esr_exp.data_processing_dir = yeast_esr_exp_path + os.path.normpath('expression_data') + os.sep
+#y1000plus_tools.yeast_esr_exp.base_dir = yeast_esr_exp_path
+#y1000plus_tools.yeast_esr_exp.data_processing_dir = yeast_esr_exp_path + os.path.normpath('expression_data') + os.sep
 
 
-print("importing yeast_esr_exp")
-print(sys.path)
-
-
-print('sys.path : \n')
-print(sys.path)
+#print("importing yeast_esr_exp")
+#print(sys.path)
+#
+#print('sys.path : \n')
+#print(sys.path)
 
 import copy
 import shutil
@@ -88,7 +89,7 @@ from Bio import motifs
 from Bio import AlignIO
 from Bio import Align
 
-import gffutils
+#import gffutils  
 from ete3 import Tree, SeqMotifFace, TreeStyle, add_face_to_node, RectFace, NodeStyle, TextFace, AttrFace
 #ete3 is not officially supported on windows, and so must be loaded via pip: 
 # pip install -U https://github.com/etetoolkit/ete/archive/qt5.zip

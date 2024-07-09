@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
 ### means I need to import the library to my environment
 import os 
-base_dir = ''
+#base_dir = ''
 data_processing_dir = ''
 #These need to be set after importing the module based on file structure 
 #set in std_libraries.py
-base_dir = ''
-print("y1000plus_tools dir is unset") 
+#base_dir = ''
+#print("y1000plus_tools dir is unset") 
 y1000plus_dir = ''
 print("y1000plus data dir is unset")
 
 import sys
-import yeast_esr_exp 
+#import yeast_esr_exp    ## Some functions require this library - especially to look up yeast orfs and common names.    Should break that funciton out separately.  
 
 #These directories are unset at first - they get set externally
 # yeast_esr_exp.base_dir = yeast_esr_exp_path 
@@ -29,7 +29,7 @@ import matplotlib.colors as colors
 
 from statsmodels.distributions.empirical_distribution import ECDF
 
-import gffutils
+#import gffutils   #Some functions require this library - it is not in Conda's package list so need to add to environment separately
 
 from Bio.Seq import Seq
 #from Bio.Alphabet import generic_dna, IUPAC
@@ -87,14 +87,14 @@ def build_y1000_species_table():
     #Adds index for orthogroup numbers to 343taxa table and saves the file as 
     #y1000_species_table.csv
     
-    y1000_species_table_fname = y1000plus_dir + "y1000_species_table.csv"
+    y1000_species_table_fname = y1000plus_dir + os.path.normpath("y1000_plus_tools/y1000_plus_tools_data/y1000_species_table.csv")
     
     #iterate through protein ids and extract numbers for each species.  
-    y1000_species_fname = y1000plus_dir + "343taxa_speicies-name_clade-name_color-code.txt"
+    y1000_species_fname = y1000plus_dir + 'shen_2018_data' + os.sep + "343taxa_speicies-name_clade-name_color-code.txt"
     y1000_species = pd.read_table(y1000_species_fname, index_col=0)
     
     spec_old_subset_copy = set(y1000_species.old_speceis_names)
-    y1000_genename_lookup_fname = y1000plus_dir + "orthomcl_output/orthomcl_SeqIDs_index.txt"
+    y1000_genename_lookup_fname = y1000plus_dir + os.path.normpath("orthomcl_output/orthomcl_SeqIDs_index.txt")
     
     species_index = {} 
     with open(y1000_genename_lookup_fname, 'r') as f: 
@@ -331,7 +331,8 @@ def extract_promoters(L_prom, og, og_genes, y1000_species_subset, fname_string):
             gene_lookup_spec = pd.read_csv(gene_lookup_spec_fname, index_col='y1000_id')
             
             if genome_name=='saccharomyces_cerevisiae': #If S. Cerevisiae, use SGD promoter database
-                sc_promoters = pd.read_pickle(base_dir + os.path.normpath('data/Scer_promoters/sc_promoters.pkl'))
+                print('Missing File need to reset file location')
+                #sc_promoters = pd.read_pickle(base_dir + os.path.normpath('data/Scer_promoters/sc_promoters.pkl'))
                 for y1000_id in genes: 
                     gene_id = gene_lookup_spec.loc[y1000_id,'gene_id']
                     prom_seq = sc_promoters.loc[gene_id,:].prom_seq
@@ -342,7 +343,8 @@ def extract_promoters(L_prom, og, og_genes, y1000_species_subset, fname_string):
                     f.write('>species=' + genome_name + ' y1000_id=' + y1000_id + ' gene_id=' + gene_id + ' gene_full=' + gene_id+'_'+sc_common_name+ ' L=' + str(len(prom_seq_Ltrim)) + '\n')
                     f.write(prom_seq_Ltrim + '\n')  
             elif genome_name=='candida_albicans': #If C alb, use CGD based promoter database
-                ca_promoters = pd.read_pickle(base_dir + os.path.normpath('data/Calb_promoters/Calb_promoters.pkl'))
+                print('Missing File need to reset file location')
+                #ca_promoters = pd.read_pickle(base_dir + os.path.normpath('data/Calb_promoters/Calb_promoters.pkl'))
                 for y1000_id in genes: 
                     print(y1000_id)
                     gene_id = gene_lookup_spec.loc[y1000_id,'gene_id']
@@ -613,13 +615,13 @@ def promoter_scan_fimo(promoters_fname, fname_prefix, motif_name, motif_fname, t
     
     return fimo_hits
 
-def extract_protein_seqs(og_genes, fname, y1000_species_subset): 
+def extract_protein_seqs(og_genes, fname_base, y1000_species_subset): 
     #Looks up protein sequences for given list of orthogroup genes 
     #
     ## Does not work for outgroup species
     
-    os.mkdir(y1000plus_dir + os.path.normpath('y1000plus_tools_data/y1000plus/proteins_og/' + fname))
-    proteins_og_fname = y1000plus_dir + os.path.normpath('y1000plus_tools_data/y1000plus/proteins_og/' + fname + '/' + fname + '.fasta')
+    os.mkdir(y1000plus_dir + os.path.normpath('y1000plus_tools_data/y1000plus/proteins_og/' + fname_base))
+    proteins_og_fname = y1000plus_dir + os.path.normpath('y1000plus_tools_data/y1000plus/proteins_og/' + fname_base + '/' + fname_base + '.fasta')
     
     genome_name_lookup = dict(zip(y1000_species_subset['spec_og_id'],y1000_species_subset['original_genome_id']))
     

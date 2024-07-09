@@ -1,6 +1,8 @@
 #ignore the following files during version control
 data/
 genomes/
+y1000plus_tools_data/
+shen_2018_data/
 scripts/.ipynb_checkpoints/
 core/__pycache__/
 *.pyc
